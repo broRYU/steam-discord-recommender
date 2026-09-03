@@ -1,0 +1,47 @@
+name: Steam recommendation
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 日本時間の毎時47分に実行
+    - cron: "47 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  recommend:
+    # 公開用リポジトリでは誤投稿を防ぐため、明示的に有効化するまで実行しません。
+    # Repository variable ENABLE_DISCORD_POSTING=true とSecretの登録後に動作します。
+    if: ${{ vars.ENABLE_DISCORD_POSTING == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Restore recommendation history
+        uses: actions/cache@v4
+        with:
+          path: data/history.json
+          key: steam-recommendation-history-${{ github.run_id }}
+          restore-keys: |
+            steam-recommendation-history-
+
+      - run: npm ci
+      - run: npm test
+      - run: npm start
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          COUNTRY_CODE: JP
+          LANGUAGE: japanese
+          RECOMMENDATION_MODE: upcoming
+          MAX_PRICE_YEN: 5000
+          MIN_DISCOUNT_PERCENT: 0
+          POST_COUNT: 1
+          ALLOW_FREE_GAMES: true
+          ALLOW_MATURE_GAMES: false
